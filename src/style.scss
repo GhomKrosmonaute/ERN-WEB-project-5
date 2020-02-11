@@ -1,0 +1,32 @@
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+#container {
+    height: 100vh;
+    display: flex;
+
+    #panel {
+
+        text-align: center;
+        flex-basis: 300px;
+        color: white;
+        background-color: #686868;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        z-index: 2;
+
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+    }
+    
+    #map {
+
+    }
+}
+
