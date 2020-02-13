@@ -1,5 +1,5 @@
 
-import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
+import mapboxgl, { MapMouseEvent, Marker } from 'mapbox-gl'
 import MapEvent from "../entities/MapEvent"
 import Storage from "./Storage"
 import { MapEventOptions, Form } from '../@types/interfaces'
@@ -11,19 +11,21 @@ export default class App {
     public $delete:HTMLButtonElement
     public $cancel:HTMLButtonElement
     public $submit:HTMLButtonElement
+    public $refresh:HTMLButtonElement
+    public $deleteAll:HTMLButtonElement
+    public panelIsOpen:boolean = false
 
     constructor(
-        private $panel:HTMLDivElement = document.getElementById('panel') as HTMLDivElement,
-        private $map:HTMLDivElement = document.getElementById('map') as HTMLDivElement
+        public $panel:HTMLDivElement = document.getElementById('panel') as HTMLDivElement,
+        public $map:HTMLDivElement = document.getElementById('map') as HTMLDivElement
     ){
 
-        this.$delete = this.$panel.querySelector('.delete') as HTMLButtonElement
-        this.$cancel = this.$panel.querySelector('.cancel') as HTMLButtonElement
-        this.$submit = this.$panel.querySelector('.submit') as HTMLButtonElement
+        for(const button of ['delete','cancel','submit','refresh','deleteAll'])
+        (this as any)['$'+button] = this.$panel.querySelector('.'+button) as HTMLButtonElement
 
         mapboxgl.accessToken = 'pk.eyJ1IjoiZ2hvbSIsImEiOiJjazZnYnQ0bHQwa3ZhM2ttbDZ1bXJ1MGMyIn0.OPZcY_xSCyutWX6XbmWraw'
         
-        this.initMap().setMapListeners().setButtonListeners()
+        this.initMap().load().setMapListeners().setButtonListeners()
 
     }
 
@@ -32,6 +34,19 @@ export default class App {
         for(const classe of 'lat,lng,title,description,start,end,id'.split(','))
         object[classe] = this.$panel.querySelector('.' + classe) as HTMLInputElement
         return object as Form
+    }
+
+    public get mapEventOptions(): MapEventOptions {
+        const form = this.form
+        return {
+            id: form.id.value,
+            lat: Number(form.lat.value),
+            lng: Number(form.lng.value),
+            title: form.title.value,
+            description: form.description.value,
+            start: form.start.value,
+            end: form.end.value
+        }
     }
 
     private initMap(): App {
@@ -53,66 +68,102 @@ export default class App {
 
     private setMapListeners(): App {
 
-        this.map.on('load', () => {
-            Storage.forEach( 'events', (mapEventOptions:MapEventOptions, id:string) => {
-                this.events.set( id, MapEvent.fromStorage( this, mapEventOptions ) )
-            })
-        })
-
         this.map.on('click', (e:MapMouseEvent) => {
 
-            console.log(e)
-
-            const form = this.form
-            const entry = Array.from(this.events).find( entry => entry[1].clicked(e.lngLat) )
-
-            if(entry){
-                entry[1].addToForm()
+            console.log(e.lngLat)
+            
+            if(this.panelIsOpen){
+                // fermeture du panel
+                this.closePanel()
             }else{
-                form.id.value = String(Date.now())
-                form.lat.value = String(e.lngLat.lat)
-                form.lng.value = String(e.lngLat.lng)
-                form.start.value = (new Date()).toISOString().slice(0,10)
-                for(const classe of ['title','description','end'])
-                (form as any)[classe].value = ''
+                // ouverture du panel avec les champs vides
+                this.emptyForm(e).openPanel()
             }
-
-            this.$panel.style.left = '0'
-            form.title.focus()
 
         })
 
         return this
     }
 
+    private emptyForm( e:MapMouseEvent ): App {
+        const form = this.form
+        form.id.value = String(Date.now())
+        form.lat.value = String(e.lngLat.lat)
+        form.lng.value = String(e.lngLat.lng)
+        form.start.value = (new Date()).toISOString().slice(0,10)
+        for(const classe of ['title','description','end'])
+        (form as any)[classe].value = ''
+        return this
+    }
+
     private setButtonListeners(): App {
-        this.$cancel.onclick = e => this.$panel.style.display = 'none'
         this.$delete.onclick = e => {
 
             const form = this.form
-            const id = form.id.value
-
+            const { id } = this.mapEventOptions
+            
             for(const input in form)
             (form as any)[input].value = ''
-
+            
+            console.log(this.events.get(id))
+            
             this.events.get(id)?.remove()
-
-            this.$panel.style.left = '-300px'
-
+            this.closePanel()
+            
         }
-        this.$submit.onclick = e => {
-
-            this.$panel.style.left = '-300px'
-            this.submit()
-
-        }
+        this.$cancel.onclick = e => this.closePanel()
+        this.$submit.onclick = e => this.submit()
+        this.$deleteAll.onclick = e => this.clear(true).closePanel()
+        this.$refresh.onclick = e => this.refresh().closePanel()
 
         return this
     }
 
     public submit(): App {
-        const form = this.form
-        this.events.set( form.id.value, new MapEvent( this, form ) )
+        const options = this.mapEventOptions
+        this.events.set( options.id, new MapEvent( this, options ) )
+        this.closePanel()
+        return this
+    }
+
+    public openPanel(): App {
+        this.$panel.style.left = '0'
+        this.panelIsOpen = true
+        return this
+    }
+
+    public closePanel(): App {
+        this.$panel.style.left = '-300px'
+        this.panelIsOpen = false
+        return this
+    }
+
+    public clear( hard:boolean ): App {
+        this.events.forEach( event => event.remove(hard) )
+        return this
+    }
+
+    public load(): App {
+
+        Storage.forEach( 'events', (mapEventOptions:MapEventOptions, id:string) => {
+            
+            this.events.set( id, MapEvent.fromStorage( this, mapEventOptions ) )
+            const marker = (this.events.get( id ) as MapEvent).marker
+
+            marker.on('dragstart', (function(marker:Marker){
+                this.events.get( this.id ).addToForm()
+            }).bind({ events: this.events, id }))
+
+            marker.on('dragend', (function(marker:Marker){
+                this.events.get( this.id ).addToForm()
+            }).bind({ events: this.events, id }))
+        })
+        
+        return this
+    }
+
+    public refresh(): App {
+        this.clear(false).load()
         return this
     }
 

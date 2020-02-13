@@ -11,23 +11,16 @@ export default class MapEvent {
 
     constructor(
         private app:App,
-        form:Form
+        mapEventOptions?:MapEventOptions
     ){
 
-        this.options = {
-            id: form.id.value,
-            lat: Number(form.lat.value),
-            lng: Number(form.lng.value),
-            title: form.title.value,
-            description: form.description.value,
-            start: form.start.value,
-            end: form.end.value
-        }
+        this.options = mapEventOptions || this.app.mapEventOptions
 
         Storage.set( 'events', this.options.id, this.options )
 
         this.marker = new mapboxgl.Marker()
             .setLngLat([this.options.lng,this.options.lat])
+            .setDraggable(true)
             .setPopup(
                 new mapboxgl.Popup({className:'popup'})
                     .setLngLat([this.options.lng, this.options.lat])
@@ -35,34 +28,28 @@ export default class MapEvent {
                         <h2> ${this.options.title} </h2>
                         <p> ${this.options.description} </p>
                     `)
-                    .addTo(this.app.map)
+                    .addTo(app.map)
             )
             .addTo(app.map)
 
     }
 
-    public clicked( mouse:{lng:number,lat:number} ): boolean {
-        const border:number = 0.5
-        return (
-            mouse.lat > this.options.lat - border && mouse.lat < this.options.lat + border &&
-            mouse.lng > this.options.lng - border && mouse.lng < this.options.lng + border            
-        )
-    }
-
-    public addToForm(){
+    public addToForm(): MapEvent {
         const form = this.app.form
         for(const prop in this.options)
         (form as any)[prop].value = String((this.options as any)[prop])
+        this.app.openPanel()
+        return this
     }
 
-    public remove(): void {
-        Storage.remove( 'events', this.options.id )
-        this.app.events.delete( this.options.id )
+    public remove( hard:boolean = true ): void {
         this.marker.remove()
+        this.app.events.delete( this.options.id )
+        if(hard) Storage.remove( 'events', this.options.id )
     }
 
     public static fromStorage( app:App, options:MapEventOptions ): MapEvent {
-        const event = new MapEvent( app, app.form )
+        const event = new MapEvent( app, options )
         for(const option in options)
         (event.options as any)[option] = (options as any)[option]
         return event
