@@ -1,110 +1,118 @@
 
-import * as L from "leaflet"
+import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
 import MapEvent from "../entities/MapEvent"
 import Storage from "./Storage"
+import { MapEventOptions, Form } from '../@types/interfaces'
 
 export default class App {
 
-    public map:L.Map
-    private events:MapEvent[] = []
+    public map:mapboxgl.Map
+    public events:Map<string,MapEvent> = new Map()
+    public $delete:HTMLButtonElement
+    public $cancel:HTMLButtonElement
+    public $submit:HTMLButtonElement
 
     constructor(
-        private $panel:HTMLElement = document.getElementById('panel'),
-        private $map:HTMLElement = document.getElementById('map')
+        private $panel:HTMLDivElement = document.getElementById('panel') as HTMLDivElement,
+        private $map:HTMLDivElement = document.getElementById('map') as HTMLDivElement
     ){
+
+        this.$delete = this.$panel.querySelector('.delete') as HTMLButtonElement
+        this.$cancel = this.$panel.querySelector('.cancel') as HTMLButtonElement
+        this.$submit = this.$panel.querySelector('.submit') as HTMLButtonElement
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZ2hvbSIsImEiOiJjazZnYnQ0bHQwa3ZhM2ttbDZ1bXJ1MGMyIn0.OPZcY_xSCyutWX6XbmWraw'
         
-        this.initMap()
-
-        this.map.on('load', () => {
-            Storage.forEach( 'events', (mapEventOptions:any, key:string) => {
-                this.events.push( new MapEvent( this, mapEventOptions, key ) )
-            })
-        })
-
-        this.map.on('click', e => {
-
-            console.log(e);
-
-            // envoie les infos du clic dans le panel
-            // envoie aussi l'id de l'event cliqué si il y en a un pas loin du curseur
-
-            // si un event est cliqué, affiche une popup
-
-            const form = this.form
-
-            form.lat.value = (e as any).latlng.lat
-            form.lng.value = (e as any).latlng.lng
-            form.title.value = '';
-            form.description.value = '';
-            form.start.value = '';
-            form.end.value = '';
-            form.id.value = ''; // l'id de l'event visé ou rien
-
-            this.$panel.style.display = 'flex'
-            form.title.focus()
-
-        });
-
-        (this.$panel.querySelector('.submit') as HTMLElement).onclick = e => {
-
-            // send to storage
-
-            const form = this.form
-
-            const event = {
-                id: form.id.value,
-                lat: Number(form.lat.value),
-                lng: Number(form.lng.value),
-                title: form.title.value,
-                description: form.description.value,
-                start: form.start.value,
-                end: form.end.value,
-            }
-
-            this.$panel.style.display = 'none'
-
-            this.events.push( new MapEvent( this, event, event.id ? event.id : String(Date.now()) ) )
-
-        }
+        this.initMap().setMapListeners().setButtonListeners()
 
     }
 
-    private get form(): any {
-        return {
-            lat: this.$panel.querySelector('.lat'),
-            lng: this.$panel.querySelector('.lng'),
-            title: this.$panel.querySelector('.title'),
-            description: this.$panel.querySelector('.description'),
-            start: this.$panel.querySelector('.start'),
-            end: this.$panel.querySelector('.end'),
-            id: this.$panel.querySelector('.id')
-        }
+    public get form(): Form {
+        const object:any = {}
+        for(const classe of 'lat,lng,title,description,start,end,id'.split(','))
+        object[classe] = this.$panel.querySelector('.' + classe) as HTMLInputElement
+        return object as Form
     }
 
     private initMap(): App {
 
-        this.map = L.map(this.$map)
-            .setView(L.latLng(46.684029, 2.448818), 6)
-            .invalidateSize(true)
-            .setMaxBounds(L.latLngBounds(
-                L.latLng(51.04139389812637, -4.350585937500001),
-                L.latLng(41.50857729743935, 7.998046875000001)
-            ))
-
-        L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
-            attribution: 'Event Manager by Ghom &copy;',
+        this.map = new mapboxgl.Map({
+            container: this.$map,
+            style: 'mapbox://styles/mapbox/streets-v9',
+            center: [2.448818, 46.684029],
+            zoom: 5,
+            minZoom: 5,
             maxZoom: 18,
-            minZoom: 6,
-            id: 'mapbox/streets-v11',
-            accessToken: 'pk.eyJ1IjoiZ2hvbSIsImEiOiJjazZnYnQ0bHQwa3ZhM2ttbDZ1bXJ1MGMyIn0.OPZcY_xSCyutWX6XbmWraw'
-        }).addTo(this.map)
+            trackResize: true,
+            customAttribution: 'Event Manager by Ghom &copy;'
+        })
 
         return this
 
     }
 
-    public addMapEvent( options:any ): App {
-        this.events.push( new MapEvent( this, options ) )
+    private setMapListeners(): App {
+
+        this.map.on('load', () => {
+            Storage.forEach( 'events', (mapEventOptions:MapEventOptions, id:string) => {
+                this.events.set( id, MapEvent.fromStorage( this, mapEventOptions ) )
+            })
+        })
+
+        this.map.on('click', (e:MapMouseEvent) => {
+
+            console.log(e)
+
+            const form = this.form
+            const entry = Array.from(this.events).find( entry => entry[1].clicked(e.lngLat) )
+
+            if(entry){
+                entry[1].addToForm()
+            }else{
+                form.id.value = String(Date.now())
+                form.lat.value = String(e.lngLat.lat)
+                form.lng.value = String(e.lngLat.lng)
+                form.start.value = (new Date()).toISOString().slice(0,10)
+                for(const classe of ['title','description','end'])
+                (form as any)[classe].value = ''
+            }
+
+            this.$panel.style.left = '0'
+            form.title.focus()
+
+        })
+
+        return this
+    }
+
+    private setButtonListeners(): App {
+        this.$cancel.onclick = e => this.$panel.style.display = 'none'
+        this.$delete.onclick = e => {
+
+            const form = this.form
+            const id = form.id.value
+
+            for(const input in form)
+            (form as any)[input].value = ''
+
+            this.events.get(id)?.remove()
+
+            this.$panel.style.left = '-300px'
+
+        }
+        this.$submit.onclick = e => {
+
+            this.$panel.style.left = '-300px'
+            this.submit()
+
+        }
+
+        return this
+    }
+
+    public submit(): App {
+        const form = this.form
+        this.events.set( form.id.value, new MapEvent( this, form ) )
         return this
     }
 

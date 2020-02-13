@@ -19,7 +19,7 @@ export default class Storage {
 
     public static ensure( name:string ): any {
         
-        let store:string = localStorage.getItem(name)
+        let store:string|null = localStorage.getItem(name)
         if(!store) return {}
         return JSON.parse(store)
 

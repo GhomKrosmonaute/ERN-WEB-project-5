@@ -14,14 +14,28 @@ module.exports = {
     plugins: [
         new CLEAN(),
         new HTML({
-            title: 'Webpack Teaching'
+            title: 'Webpack Teaching',
+            template: 'src/index.html'
         })
     ],
     module: {
-        rules: [{
+        rules: [
+            {
                 test: /\.tsx?$/i,
                 use: load('ts'),
                 exclude: /node_modules/,
+            },
+            {
+                test: /\.css$/i,
+                use: [
+                    load('style'),
+                    {
+                        loader: load('css'),
+                        options: {
+                            sourceMap: true
+                        }
+                    }
+                ]
             },
             {
                 test: /\.s(?:c|a)ss$/i,

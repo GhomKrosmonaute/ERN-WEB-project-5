@@ -4,29 +4,29 @@
     padding: 0;
 }
 
-#container {
+#panel {
+
+    transition: left 300ms;
+    position: absolute;
+    top: 0;
+    left: -300px;
+    text-align: center;
     height: 100vh;
+    width: 300px;
+    color: white;
+    background-color: #686868;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
 
-    #panel {
-
-        text-align: center;
-        flex-basis: 300px;
-        color: white;
-        background-color: #686868;
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        z-index: 2;
-
-        input, button {
-            padding: 10px;
-            margin: 5px;
-        }
+    input, button {
+        padding: 10px;
+        margin: 5px;
     }
-    
-    #map {
+}
 
-    }
+#map {
+    height: 100vh;
 }
 
