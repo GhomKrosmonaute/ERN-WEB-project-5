@@ -40,6 +40,13 @@
         margin: 5px;
         font-size: 14px;
     }
+
+    .buttons {
+
+        > h2 {
+            text-align: center;
+        }
+    }
 }
 
 #map {

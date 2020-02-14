@@ -3,6 +3,7 @@ import mapboxgl, { MapMouseEvent, Marker } from 'mapbox-gl'
 import MapEvent from "../entities/MapEvent"
 import Storage from "./Storage"
 import { MapEventOptions, Form } from '../@types/interfaces'
+import { Status } from '../@types/types'
 
 export default class App {
 
@@ -13,6 +14,7 @@ export default class App {
     public $submit:HTMLButtonElement
     public $refresh:HTMLButtonElement
     public $deleteAll:HTMLButtonElement
+    public $filters:{[key:string]:HTMLButtonElement}
     public panelIsOpen:boolean = false
 
     constructor(
@@ -22,6 +24,11 @@ export default class App {
 
         for(const button of ['delete','cancel','submit','refresh','deleteAll'])
         (this as any)['$'+button] = this.$panel.querySelector('.'+button) as HTMLButtonElement
+
+        this.$filters = {}
+        const colors = ['none','red','orange','green']
+        for(const color of colors)
+        this.$filters[color] = this.$panel.querySelector('.'+color) as HTMLButtonElement
 
         mapboxgl.accessToken = 'pk.eyJ1IjoiZ2hvbSIsImEiOiJjazZnYnQ0bHQwa3ZhM2ttbDZ1bXJ1MGMyIn0.OPZcY_xSCyutWX6XbmWraw'
         
@@ -59,7 +66,7 @@ export default class App {
             minZoom: 5,
             maxZoom: 18,
             trackResize: true,
-            customAttribution: 'Event Manager by Ghom &copy;'
+            customAttribution: 'Event Manager by &copy; Ghom'
         })
 
         return this
@@ -116,6 +123,9 @@ export default class App {
         this.$deleteAll.onclick = e => this.clear(true).closePanel()
         this.$refresh.onclick = e => this.refresh().closePanel()
 
+        for(const key in this.$filters)
+        this.$filters[key].onclick = e => this.filter(key)
+
         return this
     }
 
@@ -143,20 +153,21 @@ export default class App {
         return this
     }
 
+    public filter( key:string ): App {
+        this.events.forEach( event => {
+            if(key === 'none')
+            return event.marker.getElement().style.display = 'block'
+            if(event.color !== key)
+            event.marker.getElement().style.display = 'none'
+            else event.marker.getElement().style.display = 'block'
+        })
+        return this
+    }
+
     public load(): App {
 
         Storage.forEach( 'events', (mapEventOptions:MapEventOptions, id:string) => {
-            
             this.events.set( id, MapEvent.fromStorage( this, mapEventOptions ) )
-            const marker = (this.events.get( id ) as MapEvent).marker
-
-            marker.on('dragstart', (function(marker:Marker){
-                this.events.get( this.id ).addToForm()
-            }).bind({ events: this.events, id }))
-
-            marker.on('dragend', (function(marker:Marker){
-                this.events.get( this.id ).addToForm()
-            }).bind({ events: this.events, id }))
         })
         
         return this
