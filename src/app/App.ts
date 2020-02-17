@@ -1,9 +1,9 @@
 
-import mapboxgl, { MapMouseEvent, Marker } from 'mapbox-gl'
+import { Calendar, RenderDayCellEventArgs } from '@syncfusion/ej2-calendars'
+import mapboxgl, { MapMouseEvent } from 'mapbox-gl'
 import MapEvent from "../entities/MapEvent"
 import Storage from "./Storage"
 import { MapEventOptions, Form } from '../@types/interfaces'
-import { Status } from '../@types/types'
 
 export default class App {
 
@@ -16,6 +16,7 @@ export default class App {
     public $deleteAll:HTMLButtonElement
     public $filters:{[key:string]:HTMLButtonElement}
     public panelIsOpen:boolean = false
+    public calendar:Calendar
 
     constructor(
         public $panel:HTMLDivElement = document.getElementById('panel') as HTMLDivElement,
@@ -32,7 +33,7 @@ export default class App {
 
         mapboxgl.accessToken = 'pk.eyJ1IjoiZ2hvbSIsImEiOiJjazZnYnQ0bHQwa3ZhM2ttbDZ1bXJ1MGMyIn0.OPZcY_xSCyutWX6XbmWraw'
         
-        this.initMap().load().setMapListeners().setButtonListeners()
+        this.initMap().load().setMapListeners().setButtonListeners().setCalendar()
 
     }
 
@@ -112,8 +113,6 @@ export default class App {
             for(const input in form)
             (form as any)[input].value = ''
             
-            console.log(this.events.get(id))
-            
             this.events.get(id)?.remove()
             this.closePanel()
             
@@ -124,8 +123,32 @@ export default class App {
         this.$refresh.onclick = e => this.refresh().closePanel()
 
         for(const key in this.$filters)
-        this.$filters[key].onclick = e => this.filter(key)
+        this.$filters[key].onclick = e => this.filter(key);
 
+        (document.querySelector('button.open') as HTMLButtonElement).onclick = e => {
+            (document.querySelector('#calendar') as HTMLButtonElement).style.top = '50vh'
+        }
+
+        return this
+    }
+
+    private setCalendar(): App {
+        this.calendar = new Calendar({
+            min: new Date(Date.now()-(1000*60*60*24*31)),
+            max: new Date(Date.now()+(1000*60*60*24*31)),
+            value: new Date(),
+            renderDayCell: (args:RenderDayCellEventArgs) => {
+                const event = Array.from(this.events.values()).find( e => {
+                    const end = e.end.isValid() ? e.end.toDate().getTime() : e.start.toDate().getTime() + (1000*60*60*24)
+                    if(args.date) return args.date.getTime() >= e.start.toDate().getTime() && args.date.getTime() <= end
+                })
+                if(event && args.element) args.element.classList.add(event.color)
+            }
+        })
+        this.calendar.appendTo('#calendar');
+        (document.querySelector('#calendar .close') as HTMLButtonElement).onclick = e => {
+            (document.querySelector('#calendar') as HTMLButtonElement).style.top = '-50vh'
+        }
         return this
     }
 

@@ -5,6 +5,18 @@
     font-family: 'Sriracha', cursive;
 }
 
+.red {
+    background-color: #ff0000 !important;
+}
+
+.orange {
+    background-color: #ffa500 !important;
+}
+
+.green {
+    background-color: #00d300 !important;
+}
+
 #panel {
 
     transition: left 300ms;
@@ -52,4 +64,44 @@
 #map {
     height: 100vh;
 }
+
+button.open {
+    position: absolute;
+    left: 50vw;
+    top: 0;
+    transform: translateX(-50%);
+    width: 100px;
+    border: 0 2px 2px 2px solid #fff;
+    border-radius: 0 0 10px 10px;
+    background-color: #75cff0d2;
+}
+
+#calendar {
+
+    transition: top 300ms;
+    position: absolute;
+    z-index: 3;
+    left: 50vw;
+    top: -50vh;
+    transform: translate(-50%,-50%);
+    max-width: none;
+    min-width: none;
+
+    .e-footer-container {
+        justify-content: center !important;
+    }
+    .e-btn {
+        padding: 3px;
+        border: 0;
+        border-radius: 4px;
+        background-color: #fff;
+    }
+    .e-date-icon-prev:before{
+        content: '<' !important;
+    }
+    .e-date-icon-next:before{
+        content: '>' !important;
+    }
+}
+
 
