@@ -33,6 +33,6 @@
   "dependencies": {
     "@syncfusion/ej2-calendars": "^17.4.49",
     "mapbox-gl": "^1.7.0",
-    "moment": "^2.24.0"
+    "moment": "^2.29.2"
   }
 }
